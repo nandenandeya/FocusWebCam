@@ -1,9 +1,10 @@
 """
-FocusWebCam — Streamlit Edition with Premium UI (Proyek 3) - FIXED
-===================================================================
-- Compatible with Streamlit 1.58.0
-- Fixed st.dialog parameters
-- All logic identical to Proyek 2
+FocusWebCam — Streamlit Edition with Premium UI (Proyek 3)
+===========================================================
+- Compatible with Streamlit 1.58.0 (sama seperti Proyek 2)
+- Menggunakan @st.dialog decorator (bukan with st.dialog)
+- Logika identik dengan Proyek 2
+- UI semirip mungkin dengan Proyek 1
 """
 
 import streamlit as st
@@ -17,7 +18,7 @@ import av
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 
 # ============================================================
-# 1. PAGE CONFIG
+# PAGE CONFIG
 # ============================================================
 st.set_page_config(
     page_title="FocusWebCam | Ethical AI Focus Detection",
@@ -27,13 +28,13 @@ st.set_page_config(
 )
 
 # ============================================================
-# 2. IMPOR MEDIAPIPE
+# IMPOR MEDIAPIPE
 # ============================================================
 import mediapipe as mp
 mp_face_mesh = mp.solutions.face_mesh
 
 # ============================================================
-# 3. LANDMARK INDICES (IDENTIK PROYEK 2)
+# LANDMARK INDICES (IDENTIK PROYEK 2)
 # ============================================================
 LEFT_EYE   = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE  = [33,  160, 158, 133, 153, 144]
@@ -42,7 +43,7 @@ MOUTH_LEFT, MOUTH_RIGHT = 78, 308
 NOSE_TIP, FACE_LEFT, FACE_RIGHT = 1, 234, 454
 
 # ============================================================
-# 4. MODEL PARAMETERS (HARDCODE dari training_report.txt)
+# MODEL PARAMETERS (HARDCODE dari training_report.txt)
 # ============================================================
 MODEL_COEF = {"ear": 1.0494, "head_pose": -2.6625, "mouth_ratio": 2.0005}
 MODEL_INTERCEPT = -0.5234
@@ -58,7 +59,7 @@ SMOOTHING_WINDOW = 3
 MOUTH_MAX_REALISTIC = 0.12
 
 # ============================================================
-# 5. FUNGSI PERHITUNGAN FITUR (IDENTIK PROYEK 2)
+# FUNGSI PERHITUNGAN FITUR (IDENTIK PROYEK 2)
 # ============================================================
 def calc_ear(lm, indices, w, h):
     pts = [(lm[i].x * w, lm[i].y * h) for i in indices]
@@ -121,7 +122,7 @@ def explain_score(ear, head, mouth, score):
         return f"⚠️ Tidak fokus ({score}/100) — {isu}"
 
 # ============================================================
-# 6. QUEUE DAN SESSION STATE
+# QUEUE DAN SESSION STATE
 # ============================================================
 if "result_queue" not in st.session_state:
     st.session_state.result_queue = queue.Queue(maxsize=5)
@@ -157,7 +158,7 @@ def init_state():
 init_state()
 
 # ============================================================
-# 7. VIDEO PROCESSOR (IDENTIK PROYEK 2)
+# VIDEO PROCESSOR (IDENTIK PROYEK 2)
 # ============================================================
 class FocusVideoProcessor:
     def __init__(self):
@@ -253,7 +254,7 @@ class FocusVideoProcessor:
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # ============================================================
-# 8. DRAIN QUEUE
+# DRAIN QUEUE
 # ============================================================
 def drain_queue():
     latest = None
@@ -289,10 +290,10 @@ def drain_queue():
             ts = datetime.now().strftime("%H:%M:%S")
             st.session_state.log_entries.insert(
                 0, f"⚠️ [{ts}] Alert #{st.session_state.alert_count} — skor {score}")
-            st.toast(f"⚠️ Skor fokus rendah ({score}) selama 5 detik!", icon="⚠️")
+            st.warning(f"⚠️ Skor fokus rendah ({score}) selama 5 detik!")
 
 # ============================================================
-# 9. CSS PREMIUM (meniru Proyek 1)
+# CSS PREMIUM (meniru Proyek 1)
 # ============================================================
 def load_css():
     st.markdown("""
@@ -615,40 +616,42 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # ============================================================
-# 10. DIALOG POPUP (FIXED: removed clear_on_submit)
+# DIALOG POPUP (MENGGUNAKAN DECORATOR @st.dialog SEPERTI PROYEK 2)
 # ============================================================
-def privacy_dialog():
-    if not st.session_state.consent_asked:
-        with st.dialog("📋 Privacy Agreement"):
-            st.markdown("""
-            **To help you track your focus levels accurately, FocusWebCam needs to analyze your facial data through your camera. But don't worry, your privacy is our number one priority!**
+if not st.session_state.consent_asked:
+    @st.dialog("📋 Privacy Agreement")
+    def _consent_dialog():
+        st.markdown("""
+        **To help you track your focus levels accurately, FocusWebCam needs to analyze your facial data through your camera. But don't worry, your privacy is our number one priority!**
 
-            - ✅ **100% Local Processing** – All facial analysis happens directly on your device.
-            - ✅ **No Video Streams Sent Anywhere** – We do not upload or save your video.
-            - ✅ **Only Session Scores Saved** – Aggregate scores for your progress.
-            """)
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Allow", use_container_width=True):
-                    st.session_state.consent_given = True
-                    st.session_state.consent_asked = True
-                    st.session_state.log_entries.insert(0, "✅ Privacy consent granted.")
-                    st.rerun()
-            with col2:
-                if st.button("❌ Deny", use_container_width=True):
-                    st.session_state.consent_given = False
-                    st.session_state.consent_asked = True
-                    st.session_state.log_entries.insert(0, "❌ Privacy denied. Limited mode.")
-                    st.rerun()
+        - ✅ **100% Local Processing** – All facial analysis happens directly on your device.
+        - ✅ **No Video Streams Sent Anywhere** – We do not upload or save your video.
+        - ✅ **Only Session Scores Saved** – Aggregate scores for your progress.
+        """)
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Allow", use_container_width=True):
+                st.session_state.consent_given = True
+                st.session_state.consent_asked = True
+                st.session_state.log_entries.insert(0, "✅ Privacy consent granted.")
+                st.rerun()
+        with col2:
+            if st.button("❌ Deny", use_container_width=True):
+                st.session_state.consent_given = False
+                st.session_state.consent_asked = True
+                st.session_state.log_entries.insert(0, "❌ Privacy denied. Limited mode.")
+                st.rerun()
+    _consent_dialog()
 
 def session_complete_dialog():
     if st.session_state.get("show_session_complete", False):
-        hist = st.session_state.score_history
-        avg = round(sum(hist)/len(hist)) if hist else 0
-        alert = st.session_state.alert_count
-        duration = int(time.time() - st.session_state.session_start) if st.session_state.session_start else 0
-        mm, ss = duration//60, duration%60
-        with st.dialog("🎉 Session Complete!"):
+        @st.dialog("🎉 Session Complete!")
+        def _complete_dialog():
+            hist = st.session_state.score_history
+            avg = round(sum(hist)/len(hist)) if hist else 0
+            alert = st.session_state.alert_count
+            duration = int(time.time() - st.session_state.session_start) if st.session_state.session_start else 0
+            mm, ss = duration//60, duration%60
             st.markdown(f"""
             **Amazing job!** You made it to the end of your session.
             - **Duration:** {mm} menit {ss} detik
@@ -664,10 +667,12 @@ def session_complete_dialog():
                 st.session_state.last_alert_time = 0
                 st.session_state.session_start = None
                 st.rerun()
+        _complete_dialog()
 
 def exit_confirmation():
     if st.session_state.get("show_exit_popup", False):
-        with st.dialog("Leave Focus Session?"):
+        @st.dialog("Leave Focus Session?")
+        def _exit_dialog():
             st.markdown("Your current focus monitoring session will be closed. Are you sure you want to return to the home page?")
             col1, col2 = st.columns(2)
             with col1:
@@ -682,17 +687,20 @@ def exit_confirmation():
                     if "webrtc_ctx" in st.session_state:
                         st.session_state.webrtc_ctx = None
                     st.rerun()
+        _exit_dialog()
 
 def face_warning_dialog():
     if st.session_state.get("show_face_warning", False):
-        with st.dialog("⚠️ Face Not Detected"):
+        @st.dialog("⚠️ Face Not Detected")
+        def _face_dialog():
             st.markdown("We are unable to detect your face. Please make sure your face is visible and properly positioned.")
             if st.button("Return to Camera", use_container_width=True):
                 st.session_state.show_face_warning = False
                 st.rerun()
+        _face_dialog()
 
 # ============================================================
-# 11. LANDING PAGE
+# LANDING PAGE
 # ============================================================
 def show_landing_page():
     st.markdown("""
@@ -714,7 +722,7 @@ def show_landing_page():
             st.rerun()
 
 # ============================================================
-# 12. MAIN APP PAGE
+# MAIN APP PAGE
 # ============================================================
 def show_app_page():
     # Header
@@ -842,11 +850,10 @@ def show_app_page():
     st.markdown('<div class="privacy-note">🔒 Data diproses lokal — tidak dikirim ke server</div>', unsafe_allow_html=True)
 
 # ============================================================
-# 13. MAIN
+# MAIN
 # ============================================================
 def main():
     load_css()
-    privacy_dialog()
     session_complete_dialog()
     exit_confirmation()
     face_warning_dialog()
