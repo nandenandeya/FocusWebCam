@@ -1,9 +1,10 @@
 """
-FocusWebCam — Streamlit Edition with Premium UI (Proyek 3)
-===========================================================
-- Compatible with Streamlit 1.58.0
-- UI semirip mungkin dengan Proyek 1 (termasuk background gambar)
-- Logika identik dengan Proyek 2
+FocusWebCam — Streamlit Edition with Premium UI (Proyek 3 - Final)
+===================================================================
+- Landing page dengan tombol navigasi
+- Background gambar dari assets/bg.png
+- Logika identik Proyek 2
+- UI semirip Proyek 1
 """
 
 import streamlit as st
@@ -15,8 +16,6 @@ from collections import deque
 from datetime import datetime
 import av
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
-import os
-from PIL import Image
 
 # ============================================================
 # PAGE CONFIG
@@ -27,13 +26,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-
-# ============================================================
-# CEK FOLDER ASSETS
-# ============================================================
-ASSETS_PATH = "assets"
-if not os.path.exists(ASSETS_PATH):
-    os.makedirs(ASSETS_PATH)
 
 # ============================================================
 # IMPOR MEDIAPIPE
@@ -304,38 +296,31 @@ def drain_queue():
 # CSS PREMIUM (meniru Proyek 1 dengan background gambar)
 # ============================================================
 def load_css():
-    # Cek apakah file bg.png ada di assets
-    bg_image_path = "assets/bg.png"
-    bg_image_url = "https://raw.githubusercontent.com/your-repo/focuswebcam/main/assets/bg.png"  # fallback
-    if os.path.exists(bg_image_path):
-        import base64
-        with open(bg_image_path, "rb") as f:
-            encoded = base64.b64encode(f.read()).decode()
-        bg_image_url = f"data:image/png;base64,{encoded}"
+    # Cek apakah file bg.png ada di folder assets
+    try:
+        with open("assets/bg.png", "rb"):
+            bg_exists = True
+    except:
+        bg_exists = False
+    
+    bg_style = ""
+    if bg_exists:
+        bg_style = """
+        background: url('assets/bg.png') no-repeat center center fixed;
+        background-size: cover;
+        """
     else:
-        bg_image_url = "https://www.transparenttextures.com/patterns/45-degree-fabric-light.png"
+        bg_style = """
+        background: linear-gradient(145deg, #dde8f0 0%, #c8d8e8 40%, #b8cfe0 100%);
+        """
     
     st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&family=Kameron:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
-    /* Global background dengan gambar */
     .stApp {{
-        background: url("{bg_image_url}") no-repeat center center fixed;
-        background-size: cover;
         font-family: 'Syne', sans-serif;
-    }}
-    /* Overlay gradien agar teks terbaca */
-    .stApp::before {{
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(145deg, rgba(221,232,240,0.85) 0%, rgba(200,216,232,0.9) 100%);
-        z-index: -1;
-        pointer-events: none;
+        {bg_style}
     }}
     [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
         display: none !important;
@@ -343,19 +328,16 @@ def load_css():
     [data-testid="stSidebar"] {{
         display: none !important;
     }}
-    
-    /* Landing page container dengan gambar background */
+    /* Landing page */
     .landing-container {{
         position: fixed;
         inset: 0;
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: center;
+        align-items: center;
+        justify-content: flex-start;
         padding: 80px;
         z-index: 10;
-        background: linear-gradient(145deg, rgba(221,232,240,0.7) 0%, rgba(200,216,232,0.8) 100%);
-        backdrop-filter: blur(8px);
+        background: transparent;
     }}
     .landing-content {{
         max-width: 700px;
@@ -395,35 +377,6 @@ def load_css():
         color: #4a6075;
         margin-top: 16px;
     }}
-    /* Tombol landing di tengah bawah */
-    .landing-button-wrapper {{
-        position: fixed;
-        bottom: 60px;
-        left: 0;
-        right: 0;
-        display: flex;
-        justify-content: center;
-        z-index: 20;
-    }}
-    .landing-button {{
-        background: #1a2433;
-        border: none;
-        padding: 14px 48px;
-        border-radius: 60px;
-        font-family: 'Lusitana', serif;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: white;
-        cursor: pointer;
-        transition: transform 0.2s, background 0.2s;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    }}
-    .landing-button:hover {{
-        background: #2a3a50;
-        transform: scale(1.02);
-    }}
-    
-    /* App page */
     .app-wrapper {{
         padding: 16px 24px;
         height: 100vh;
@@ -649,7 +602,7 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # ============================================================
-# DIALOG POPUP (menggunakan @st.dialog)
+# DIALOG POPUP (MENGGUNAKAN DECORATOR @st.dialog)
 # ============================================================
 if not st.session_state.consent_asked:
     @st.dialog("📋 Privacy Agreement")
@@ -736,7 +689,6 @@ def face_warning_dialog():
 # LANDING PAGE
 # ============================================================
 def show_landing_page():
-    # Tampilkan HTML landing
     st.markdown("""
     <div class="landing-container">
         <div class="landing-content">
@@ -748,20 +700,14 @@ def show_landing_page():
             <p class="landing-subtitle">Your Personal AI Companion for Unstoppable Focus.</p>
         </div>
     </div>
-    <div class="landing-button-wrapper">
-        <button class="landing-button" id="landingStartBtn">Let's get started →</button>
-    </div>
-    <script>
-    document.getElementById('landingStartBtn').onclick = function() {
-        const streamlitButton = parent.document.querySelector('button[kind="primary"]');
-        if (streamlitButton) streamlitButton.click();
-    }
-    </script>
     """, unsafe_allow_html=True)
-    # Tombol Streamlit tersembunyi untuk menangkap klik
-    if st.button("hidden_start", key="hidden_start", label_visibility="collapsed"):
-        st.session_state.show_landing = False
-        st.rerun()
+    
+    # Tombol di tengah bawah agar pasti terlihat dan berfungsi
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        if st.button("🚀 Let's get started →", key="landing_btn", use_container_width=True):
+            st.session_state.show_landing = False
+            st.rerun()
 
 # ============================================================
 # MAIN APP PAGE
@@ -817,9 +763,8 @@ def show_app_page():
         )
         st.session_state.webrtc_ctx = ctx
 
-        # CSS corner overlay hanya untuk tampilan, karena video sudah di-render oleh komponen
         st.markdown("""
-        <div class="camera-frame" style="position:relative; min-height:360px; margin-top:8px;">
+        <div class="camera-frame" style="position:relative; min-height:360px;">
             <div class="corner tl"></div><div class="corner tr"></div>
             <div class="corner bl"></div><div class="corner br"></div>
             <div class="face-status">Wajah terdeteksi</div>
