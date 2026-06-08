@@ -1,10 +1,9 @@
 """
-FocusWebCam — Streamlit Edition with Premium UI (Proyek 3 - Final)
-===================================================================
-- Landing page dengan tombol navigasi
-- Background gambar dari assets/bg.png
-- Logika identik Proyek 2
-- UI semirip Proyek 1
+FocusWebCam — Streamlit Edition (Direct Main Page)
+====================================================
+- Tanpa landing page, langsung ke main app.
+- UI/UX meniru Proyek 1.
+- Logika deteksi fokus identik dengan Proyek 2.
 """
 
 import streamlit as st
@@ -139,8 +138,6 @@ def init_state():
         "log_entries":      ["— Sistem siap —"],
         "consent_given":    False,
         "consent_asked":    False,
-        "show_landing":     True,
-        "show_exit_popup":  False,
         "show_face_warning": False,
         "face_warning_triggered": False,
         "show_session_complete": False,
@@ -293,146 +290,79 @@ def drain_queue():
             st.warning(f"⚠️ Skor fokus rendah ({score}) selama 5 detik!")
 
 # ============================================================
-# CSS PREMIUM (meniru Proyek 1 dengan background gambar)
+# CSS (meniru Proyek 1)
 # ============================================================
 def load_css():
-    # Cek apakah file bg.png ada di folder assets
-    try:
-        with open("assets/bg.png", "rb"):
-            bg_exists = True
-    except:
-        bg_exists = False
-    
-    bg_style = ""
-    if bg_exists:
-        bg_style = """
-        background: url('assets/bg.png') no-repeat center center fixed;
-        background-size: cover;
-        """
-    else:
-        bg_style = """
-        background: linear-gradient(145deg, #dde8f0 0%, #c8d8e8 40%, #b8cfe0 100%);
-        """
-    
-    st.markdown(f"""
+    st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&family=Kameron:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
-    .stApp {{
+    .stApp {
+        background: linear-gradient(145deg, #dde8f0 0%, #c8d8e8 40%, #b8cfe0 100%);
         font-family: 'Syne', sans-serif;
-        {bg_style}
-    }}
-    [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
+    }
+    [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {
         display: none !important;
-    }}
-    [data-testid="stSidebar"] {{
+    }
+    [data-testid="stSidebar"] {
         display: none !important;
-    }}
-    /* Landing page */
-    .landing-container {{
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        padding: 80px;
-        z-index: 10;
-        background: transparent;
-    }}
-    .landing-content {{
-        max-width: 700px;
-        margin-left: 8%;
-    }}
-    .landing-welcome {{
-        font-family: 'Lusitana', serif;
-        font-size: 5rem;
-        font-weight: 400;
-        color: #1e2d40;
-        line-height: 1;
-    }}
-    .landing-title {{
-        font-family: 'Kameron', serif;
-        font-size: 5rem;
-        font-weight: 700;
-        color: #1a2433;
-        display: flex;
-        align-items: center;
-        gap: 24px;
-    }}
-    .dot-pulse {{
-        display: inline-block;
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        background: #3a8c52;
-        animation: dotBlink 2.2s ease-in-out infinite;
-    }}
-    @keyframes dotBlink {{
-        0%,100% {{ opacity: 1; box-shadow: 0 0 0 0 rgba(58,140,82,0.5); }}
-        50% {{ opacity: 0.35; box-shadow: 0 0 0 8px rgba(58,140,82,0); }}
-    }}
-    .landing-subtitle {{
-        font-family: 'Lusitana', serif;
-        font-size: 1.6rem;
-        color: #4a6075;
-        margin-top: 16px;
-    }}
-    .app-wrapper {{
+    }
+    .app-wrapper {
         padding: 16px 24px;
         height: 100vh;
         display: flex;
         flex-direction: column;
-    }}
-    .header {{
+    }
+    .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         border-bottom: 1px solid rgba(30,45,64,0.15);
         padding-bottom: 10px;
         margin-bottom: 12px;
-    }}
-    .logo {{
+    }
+    .logo {
         display: flex;
         align-items: center;
         gap: 10px;
-    }}
-    .logo-dot {{
+    }
+    .logo-dot {
         width: 20px;
         height: 20px;
         background: #3a8c52;
         border-radius: 50%;
         box-shadow: 0 0 10px rgba(58,140,82,0.6);
         animation: pulse 2s infinite;
-    }}
-    @keyframes pulse {{
-        0%,100% {{ opacity: 1; box-shadow: 0 0 10px #3a8c52; }}
-        50% {{ opacity: 0.45; box-shadow: 0 0 4px #3a8c52; }}
-    }}
-    .logo-text {{
+    }
+    @keyframes pulse {
+        0%,100% { opacity: 1; box-shadow: 0 0 10px #3a8c52; }
+        50% { opacity: 0.45; box-shadow: 0 0 4px #3a8c52; }
+    }
+    .logo-text {
         font-family: 'Kameron', serif;
         font-size: 3rem;
         font-weight: 700;
         color: #1a2433;
-    }}
-    .header-status {{
+    }
+    .header-status {
         font-family: 'Space Mono', monospace;
         font-size: 0.6rem;
         color: #6a7e92;
         letter-spacing: 0.1em;
-    }}
-    .main-layout {{
+    }
+    .main-layout {
         display: grid;
         grid-template-columns: 1fr 340px;
         gap: 16px;
         flex: 1;
         overflow: hidden;
-    }}
-    .camera-section {{
+    }
+    .camera-section {
         display: flex;
         flex-direction: column;
         gap: 10px;
-    }}
-    .camera-frame {{
+    }
+    .camera-frame {
         position: relative;
         flex: 1;
         background: rgba(255,255,255,0.25);
@@ -440,8 +370,8 @@ def load_css():
         border-radius: 6px;
         overflow: hidden;
         backdrop-filter: blur(4px);
-    }}
-    .corner {{
+    }
+    .corner {
         position: absolute;
         width: 16px;
         height: 16px;
@@ -449,12 +379,12 @@ def load_css():
         border-style: solid;
         z-index: 10;
         transition: border-color 0.3s;
-    }}
-    .tl {{ top: 10px; left: 10px; border-width: 2px 0 0 2px; }}
-    .tr {{ top: 10px; right: 10px; border-width: 2px 2px 0 0; }}
-    .bl {{ bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }}
-    .br {{ bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }}
-    .face-status {{
+    }
+    .tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+    .tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+    .bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+    .br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+    .face-status {
         position: absolute;
         bottom: 12px;
         left: 12px;
@@ -464,128 +394,128 @@ def load_css():
         padding: 4px 10px;
         border-radius: 2px;
         z-index: 10;
-    }}
-    .info-section {{
+    }
+    .info-section {
         display: flex;
         flex-direction: column;
         gap: 10px;
         overflow-y: auto;
         scrollbar-width: none;
-    }}
-    .score-card, .features-grid, .stats-card, .log-card {{
+    }
+    .score-card, .features-grid, .stats-card, .log-card {
         background: rgba(255,255,255,0.55);
         border: 1px solid rgba(30,45,64,0.12);
         border-radius: 6px;
         backdrop-filter: blur(6px);
         padding: 14px 16px;
-    }}
-    .score-label {{
+    }
+    .score-label {
         font-family: 'Space Mono', monospace;
         font-size: 0.7rem;
         color: #6a7e92;
         letter-spacing: 0.12em;
-    }}
-    .score-number {{
+    }
+    .score-number {
         font-family: 'Kameron', serif;
         font-size: 2.8rem;
         font-weight: 700;
         color: #1e2d40;
         line-height: 1;
-    }}
-    .score-unit {{
+    }
+    .score-unit {
         font-family: 'Space Mono', monospace;
         font-size: 0.9rem;
         color: #8a9eb0;
-    }}
-    .score-bar-track {{
+    }
+    .score-bar-track {
         height: 8px;
         background: #dce8f0;
         border-radius: 4px;
         overflow: hidden;
         margin: 8px 0;
-    }}
-    .score-bar-fill {{
+    }
+    .score-bar-fill {
         height: 100%;
         width: 0%;
         background: #3a8c52;
         transition: width 0.4s;
-    }}
-    .features-grid {{
+    }
+    .features-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 6px;
         padding: 10px 8px;
-    }}
-    .feature-card {{
+    }
+    .feature-card {
         background: rgba(255,255,255,0.5);
         border: 1px solid rgba(30,45,64,0.1);
         border-radius: 4px;
         padding: 8px 4px;
         text-align: center;
-    }}
-    .feature-name {{
+    }
+    .feature-name {
         font-family: 'Space Mono', monospace;
         font-size: 0.5rem;
         color: #6a7e92;
         text-transform: uppercase;
-    }}
-    .feature-value {{
+    }
+    .feature-value {
         font-family: 'Kameron', serif;
         font-size: 0.9rem;
         font-weight: 600;
         color: #1e2d40;
         margin: 4px 0;
-    }}
-    .feature-bar-track {{
+    }
+    .feature-bar-track {
         height: 3px;
         background: #dce8f0;
         border-radius: 2px;
         overflow: hidden;
-    }}
-    .feature-bar-fill {{
+    }
+    .feature-bar-fill {
         height: 100%;
         width: 0%;
         background: #3a8c52;
         transition: width 0.4s;
-    }}
-    .stats-grid {{
+    }
+    .stats-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 6px;
         text-align: center;
-    }}
-    .stat-value {{
+    }
+    .stat-value {
         font-family: 'Kameron', serif;
         font-size: 1rem;
         font-weight: 600;
         color: #c0392b;
-    }}
-    .stat-label {{
+    }
+    .stat-label {
         font-family: 'Space Mono', monospace;
         font-size: 0.6rem;
         color: #8a9eb0;
-    }}
-    .log-list {{
+    }
+    .log-list {
         max-height: 180px;
         overflow-y: auto;
         font-family: 'Space Mono', monospace;
         font-size: 0.7rem;
         color: #6a7e92;
-    }}
-    .log-item {{
+    }
+    .log-item {
         padding: 3px 0;
         border-bottom: 1px solid rgba(30,45,64,0.07);
-    }}
-    .log-alert {{ color: #c0392b !important; }}
-    .log-focus {{ color: #3a8c52 !important; }}
-    .privacy-note {{
+    }
+    .log-alert { color: #c0392b !important; }
+    .log-focus { color: #3a8c52 !important; }
+    .privacy-note {
         font-family: 'Space Mono', monospace;
         font-size: 0.5rem;
         color: #8a9eb0;
         text-align: center;
         margin-top: 8px;
-    }}
-    .stButton > button {{
+    }
+    .stButton > button {
         background: transparent !important;
         border: 1.5px solid #3a8c52 !important;
         color: #3a8c52 !important;
@@ -593,11 +523,11 @@ def load_css():
         width: 100%;
         border-radius: 6px !important;
         transition: all 0.25s;
-    }}
-    .stButton > button:hover {{
+    }
+    .stButton > button:hover {
         background: #3a8c52 !important;
         color: white !important;
-    }}
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -655,26 +585,6 @@ def session_complete_dialog():
                 st.rerun()
         _complete_dialog()
 
-def exit_confirmation():
-    if st.session_state.get("show_exit_popup", False):
-        @st.dialog("Leave Focus Session?")
-        def _exit_dialog():
-            st.markdown("Your current focus monitoring session will be closed. Are you sure you want to return to the home page?")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Stay Here", use_container_width=True):
-                    st.session_state.show_exit_popup = False
-                    st.rerun()
-            with col2:
-                if st.button("Leave", use_container_width=True):
-                    st.session_state.show_exit_popup = False
-                    st.session_state.show_landing = True
-                    st.session_state.session_active = False
-                    if "webrtc_ctx" in st.session_state:
-                        st.session_state.webrtc_ctx = None
-                    st.rerun()
-        _exit_dialog()
-
 def face_warning_dialog():
     if st.session_state.get("show_face_warning", False):
         @st.dialog("⚠️ Face Not Detected")
@@ -686,31 +596,7 @@ def face_warning_dialog():
         _face_dialog()
 
 # ============================================================
-# LANDING PAGE
-# ============================================================
-def show_landing_page():
-    st.markdown("""
-    <div class="landing-container">
-        <div class="landing-content">
-            <p class="landing-welcome">Welcome to</p>
-            <h1 class="landing-title">
-                <span class="dot-pulse"></span>
-                FocusWebCam
-            </h1>
-            <p class="landing-subtitle">Your Personal AI Companion for Unstoppable Focus.</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Tombol di tengah bawah agar pasti terlihat dan berfungsi
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        if st.button("🚀 Let's get started →", key="landing_btn", use_container_width=True):
-            st.session_state.show_landing = False
-            st.rerun()
-
-# ============================================================
-# MAIN APP PAGE
+# MAIN APP PAGE (Langsung ditampilkan)
 # ============================================================
 def show_app_page():
     # Header
@@ -831,8 +717,21 @@ def show_app_page():
             logs_html += f'<div class="log-item {cls}">{entry}</div>'
         st.markdown(f'<div class="log-card"><div class="score-label">LOG AKTIVITAS</div><div class="log-list">{logs_html}</div></div>', unsafe_allow_html=True)
 
-        if st.button("← Back", key="back_btn"):
-            st.session_state.show_exit_popup = True
+        # Tombol back diganti dengan refresh atau reset (karena tidak ada landing page)
+        if st.button("↻ Reset", key="reset_btn"):
+            # Reset semua state session
+            st.session_state.session_active = False
+            st.session_state.score_history = []
+            st.session_state.alert_count = 0
+            st.session_state.low_score_count = 0
+            st.session_state.last_alert_time = 0
+            st.session_state.session_start = None
+            st.session_state.disp_score = None
+            st.session_state.disp_ear = None
+            st.session_state.disp_head = None
+            st.session_state.disp_mouth = None
+            st.session_state.disp_expl = ""
+            st.session_state.log_entries = ["— Sistem siap —"]
             st.rerun()
 
     st.markdown('<div class="privacy-note">🔒 Data diproses lokal — tidak dikirim ke server</div>', unsafe_allow_html=True)
@@ -843,16 +742,11 @@ def show_app_page():
 def main():
     load_css()
     session_complete_dialog()
-    exit_confirmation()
     face_warning_dialog()
-
-    if st.session_state.show_landing:
-        show_landing_page()
-    else:
-        show_app_page()
-        if st.session_state.get("webrtc_ctx") and st.session_state.webrtc_ctx.state.playing:
-            time.sleep(0.5)
-            st.rerun()
+    show_app_page()
+    if st.session_state.get("webrtc_ctx") and st.session_state.webrtc_ctx.state.playing:
+        time.sleep(0.5)
+        st.rerun()
 
 if __name__ == "__main__":
     main()
