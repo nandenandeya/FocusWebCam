@@ -3,8 +3,7 @@ FocusWebCam — Streamlit Edition with Premium UI (Proyek 3) - FIXED
 ===================================================================
 - Compatible with Streamlit 1.58.0
 - Fixed st.dialog parameters
-- MediaPipe replaced with OpenCV Haar Cascade (Python 3.14 compatible)
-- All scoring logic identical to Proyek 2
+- All logic identical to Proyek 2
 """
 
 import streamlit as st
@@ -28,13 +27,22 @@ st.set_page_config(
 )
 
 # ============================================================
-# 2. OPENCV FACE/EYE DETECTOR (PENGGANTI MEDIAPIPE)
+# 2. IMPOR MEDIAPIPE
 # ============================================================
-_face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-_eye_cascade  = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+import mediapipe as mp
+mp_face_mesh = mp.solutions.face_mesh
 
 # ============================================================
-# 3. MODEL PARAMETERS (HARDCODE dari training_report.txt)
+# 3. LANDMARK INDICES (IDENTIK PROYEK 2)
+# ============================================================
+LEFT_EYE   = [362, 385, 387, 263, 373, 380]
+RIGHT_EYE  = [33,  160, 158, 133, 153, 144]
+MOUTH_TOP, MOUTH_BOTTOM = 13, 14
+MOUTH_LEFT, MOUTH_RIGHT = 78, 308
+NOSE_TIP, FACE_LEFT, FACE_RIGHT = 1, 234, 454
+
+# ============================================================
+# 4. MODEL PARAMETERS (HARDCODE dari training_report.txt)
 # ============================================================
 MODEL_COEF = {"ear": 1.0494, "head_pose": -2.6625, "mouth_ratio": 2.0005}
 MODEL_INTERCEPT = -0.5234
@@ -50,48 +58,32 @@ SMOOTHING_WINDOW = 3
 MOUTH_MAX_REALISTIC = 0.12
 
 # ============================================================
-# 4. FUNGSI PERHITUNGAN FITUR (OpenCV-based, logika identik)
+# 5. FUNGSI PERHITUNGAN FITUR (IDENTIK PROYEK 2)
 # ============================================================
+def calc_ear(lm, indices, w, h):
+    pts = [(lm[i].x * w, lm[i].y * h) for i in indices]
+    A = np.hypot(pts[1][0]-pts[5][0], pts[1][1]-pts[5][1])
+    B = np.hypot(pts[2][0]-pts[4][0], pts[2][1]-pts[4][1])
+    C = np.hypot(pts[0][0]-pts[3][0], pts[0][1]-pts[3][1])
+    return (A + B) / (2.0 * C) if C else 0.0
 
-def estimate_ear_from_eye_rect(eye_rect):
-    """
-    Estimasi EAR dari bounding box mata (OpenCV haar cascade).
-    Ratio tinggi/lebar box ~ openness mata.
-    """
-    x, y, ew, eh = eye_rect
-    # EAR aproksimasi: mata terbuka = ratio ~0.25-0.35, tutup = ~0.10
-    raw = eh / (ew + 1e-6)
-    # Scale ke range EAR yang wajar (0.10 ~ 0.40)
-    return float(np.clip(raw * 0.6, 0.08, 0.40))
+def calc_head_pose(lm, w, h):
+    nose  = lm[NOSE_TIP]
+    left  = lm[FACE_LEFT]
+    right = lm[FACE_RIGHT]
+    face_center = (left.x + right.x) / 2
+    face_width  = abs(right.x - left.x)
+    return abs(nose.x - face_center) / face_width if face_width else 0.0
 
-def estimate_ear_no_eye():
-    """Jika mata tidak terdeteksi, anggap mata tertutup."""
-    return 0.12
-
-def calc_head_pose_from_face(fx, fw, frame_w):
-    """
-    Estimasi head pose dari posisi wajah dalam frame.
-    Semakin wajah ke pinggir, makin besar deviasi.
-    """
-    face_center_x = fx + fw / 2.0
-    frame_center_x = frame_w / 2.0
-    deviation = abs(face_center_x - frame_center_x) / (frame_w / 2.0)
-    return float(np.clip(deviation, 0.0, 1.0))
-
-def estimate_mouth_ratio_from_face(fy, fh, face_gray):
-    """
-    Estimasi mouth openness menggunakan variasi piksel pada region mulut.
-    Mulut terbuka = lebih banyak variasi di area bawah wajah.
-    """
-    mouth_y = fy + int(fh * 0.65)
-    mouth_h = int(fh * 0.25)
-    mouth_region = face_gray[mouth_y:mouth_y + mouth_h, :]
-    if mouth_region.size == 0:
-        return 0.04
-    # Variasi piksel (std) di area mulut sebagai proxy
-    std_val = float(np.std(mouth_region)) / 255.0
-    # Skala ke range mouth_ratio yang wajar (0.0 ~ 0.12)
-    return float(np.clip(std_val * 0.8, 0.0, MOUTH_MAX_REALISTIC))
+def calc_mouth(lm, w, h):
+    top    = lm[MOUTH_TOP]
+    bottom = lm[MOUTH_BOTTOM]
+    left   = lm[MOUTH_LEFT]
+    right  = lm[MOUTH_RIGHT]
+    vertical   = abs((top.y - bottom.y) * h)
+    horizontal = abs((left.x - right.x) * w)
+    ratio = vertical / horizontal if horizontal else 0.0
+    return min(ratio, MOUTH_MAX_REALISTIC)
 
 def standardize(v, mean, std):
     return (v - mean) / std if std else 0.0
@@ -103,9 +95,9 @@ def predict_probability(ear, head_pose, mouth):
     ear_s   = standardize(ear,       **MODEL_SCALER["ear"])
     head_s  = standardize(head_pose, **MODEL_SCALER["head_pose"])
     mouth_s = standardize(mouth,     **MODEL_SCALER["mouth_ratio"])
-    logit   = (MODEL_COEF["ear"]         * ear_s  +
-               MODEL_COEF["head_pose"]   * head_s +
-               MODEL_COEF["mouth_ratio"] * mouth_s +
+    logit   = (MODEL_COEF["ear"]        * ear_s  +
+               MODEL_COEF["head_pose"]  * head_s +
+               MODEL_COEF["mouth_ratio"]* mouth_s +
                MODEL_INTERCEPT)
     return float(sigmoid(logit))
 
@@ -129,7 +121,7 @@ def explain_score(ear, head, mouth, score):
         return f"⚠️ Tidak fokus ({score}/100) — {isu}"
 
 # ============================================================
-# 5. QUEUE DAN SESSION STATE
+# 6. QUEUE DAN SESSION STATE
 # ============================================================
 if "result_queue" not in st.session_state:
     st.session_state.result_queue = queue.Queue(maxsize=5)
@@ -165,61 +157,37 @@ def init_state():
 init_state()
 
 # ============================================================
-# 6. VIDEO PROCESSOR (OpenCV Haar Cascade, logika identik)
+# 7. VIDEO PROCESSOR (IDENTIK PROYEK 2)
 # ============================================================
 class FocusVideoProcessor:
     def __init__(self):
+        self.face_mesh = mp_face_mesh.FaceMesh(
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
         self._smooth = deque(maxlen=SMOOTHING_WINDOW)
         self.no_face_counter = 0
-        # Load cascade classifiers per-instance (thread-safe)
-        self._face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        )
-        self._eye_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_eye.xml"
-        )
 
     def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
-        img  = frame.to_ndarray(format="bgr24")
+        img = frame.to_ndarray(format="bgr24")
         h, w = img.shape[:2]
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.equalizeHist(gray)
+        rgb  = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        res  = self.face_mesh.process(rgb)
 
-        faces = self._face_cascade.detectMultiScale(
-            gray, scaleFactor=1.1, minNeighbors=5, minSize=(80, 80)
-        )
-
-        if len(faces) > 0:
+        if res.multi_face_landmarks:
             self.no_face_counter = 0
             if st.session_state.show_face_warning:
                 st.session_state.show_face_warning = False
                 st.session_state.face_warning_triggered = False
+            lm    = res.multi_face_landmarks[0].landmark
+            ear_l = calc_ear(lm, LEFT_EYE,  w, h)
+            ear_r = calc_ear(lm, RIGHT_EYE, w, h)
+            ear   = (ear_l + ear_r) / 2.0
+            head  = calc_head_pose(lm, w, h)
+            mouth = calc_mouth(lm, w, h)
 
-            # Ambil wajah terbesar
-            fx, fy, fw, fh = max(faces, key=lambda r: r[2] * r[3])
-
-            # --- EAR: deteksi mata dalam ROI wajah ---
-            roi_gray = gray[fy:fy+fh, fx:fx+fw]
-            eyes = self._eye_cascade.detectMultiScale(
-                roi_gray, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20)
-            )
-            if len(eyes) >= 2:
-                # Pakai 2 mata terbesar
-                sorted_eyes = sorted(eyes, key=lambda e: e[2]*e[3], reverse=True)[:2]
-                ear_vals = [estimate_ear_from_eye_rect(e) for e in sorted_eyes]
-                ear = float(np.mean(ear_vals))
-            elif len(eyes) == 1:
-                ear = estimate_ear_from_eye_rect(eyes[0])
-            else:
-                ear = estimate_ear_no_eye()
-
-            # --- HEAD POSE dari posisi wajah di frame ---
-            head = calc_head_pose_from_face(fx, fw, w)
-
-            # --- MOUTH RATIO dari variasi piksel area mulut ---
-            mouth = estimate_mouth_ratio_from_face(fy, fh, gray)
-
-            # --- SCORING (identik Proyek 2) ---
             prob  = predict_probability(ear, head, mouth)
             self._smooth.append(prob * 100)
             score = int(np.clip(round(np.mean(self._smooth)), 0, 100))
@@ -242,37 +210,37 @@ class FocusVideoProcessor:
                 try:    result_queue.put_nowait(data)
                 except: pass
 
-            # --- Draw overlay ---
-            # Gambar kotak wajah
-            cv2.rectangle(img, (fx, fy), (fx+fw, fy+fh), color, 1)
+            # Draw overlay
+            for idx in LEFT_EYE + RIGHT_EYE:
+                pt = lm[idx]
+                cv2.circle(img, (int(pt.x*w), int(pt.y*h)), 2, color, -1)
 
-            # Gambar titik mata
-            for (ex, ey, ew, eh) in (eyes if len(eyes) > 0 else []):
-                cx = fx + ex + ew // 2
-                cy = fy + ey + eh // 2
-                cv2.circle(img, (cx, cy), 3, color, -1)
+            fl = lm[FACE_LEFT]; fr = lm[FACE_RIGHT]
+            ft = lm[10];        fb = lm[152]
+            cv2.rectangle(img,
+                (int(fl.x*w), int(ft.y*h)),
+                (int(fr.x*w), int(fb.y*h)),
+                color, 1)
 
-            # Overlay info box
             overlay = img.copy()
-            cv2.rectangle(overlay, (10, 10), (210, 105), (0, 0, 0), -1)
+            cv2.rectangle(overlay, (10, 10), (210, 105), (0,0,0), -1)
             cv2.addWeighted(overlay, 0.55, img, 0.45, 0, img)
             cv2.putText(img, f"FOCUS: {score}", (18, 38),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 2)
             cv2.putText(img, f"EAR:{ear:.3f}  HEAD:{head:.3f}", (18, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180,180,180), 1)
             cv2.putText(img, f"MOUTH:{mouth:.3f}", (18, 78),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
-            bar_w = int((score / 100) * 182)
-            cv2.rectangle(img, (18, 88), (200, 97), (40, 40, 40), -1)
-            cv2.rectangle(img, (18, 88), (18 + bar_w, 97), color, -1)
-
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180,180,180), 1)
+            bar_w = int((score/100)*182)
+            cv2.rectangle(img, (18, 88), (200, 97), (40,40,40), -1)
+            cv2.rectangle(img, (18, 88), (18+bar_w, 97), color, -1)
         else:
             self.no_face_counter += 1
             if self.no_face_counter > 30 and not st.session_state.face_warning_triggered:
                 st.session_state.show_face_warning = True
                 st.session_state.face_warning_triggered = True
             cv2.putText(img, "Tidak ada wajah terdeteksi", (20, 40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (80, 80, 80), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (80,80,80), 1)
             data = {"face": False, "score": 0,
                     "ear": None, "head": None, "mouth": None, "expl": ""}
             try:
@@ -282,11 +250,10 @@ class FocusVideoProcessor:
                 except: pass
                 try:    result_queue.put_nowait(data)
                 except: pass
-
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # ============================================================
-# 7. DRAIN QUEUE
+# 8. DRAIN QUEUE
 # ============================================================
 def drain_queue():
     latest = None
@@ -325,7 +292,7 @@ def drain_queue():
             st.toast(f"⚠️ Skor fokus rendah ({score}) selama 5 detik!", icon="⚠️")
 
 # ============================================================
-# 8. CSS PREMIUM (identik Proyek 1)
+# 9. CSS PREMIUM (meniru Proyek 1)
 # ============================================================
 def load_css():
     st.markdown("""
@@ -342,6 +309,7 @@ def load_css():
     [data-testid="stSidebar"] {
         display: none !important;
     }
+    /* Landing page */
     .landing-container {
         position: fixed;
         inset: 0;
@@ -647,7 +615,7 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # ============================================================
-# 9. DIALOG POPUP (FIXED: removed clear_on_submit)
+# 10. DIALOG POPUP (FIXED: removed clear_on_submit)
 # ============================================================
 def privacy_dialog():
     if not st.session_state.consent_asked:
@@ -724,7 +692,7 @@ def face_warning_dialog():
                 st.rerun()
 
 # ============================================================
-# 10. LANDING PAGE
+# 11. LANDING PAGE
 # ============================================================
 def show_landing_page():
     st.markdown("""
@@ -739,24 +707,28 @@ def show_landing_page():
         </div>
     </div>
     """, unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([4, 1, 1])
+    col1, col2, col3 = st.columns([4,1,1])
     with col3:
         if st.button("Let's get started →", key="landing_btn"):
             st.session_state.show_landing = False
             st.rerun()
 
 # ============================================================
-# 11. MAIN APP PAGE
+# 12. MAIN APP PAGE
 # ============================================================
 def show_app_page():
-    col_logo, col_status = st.columns([3, 1])
+    # Header
+    col_logo, col_status = st.columns([3,1])
     with col_logo:
         st.markdown('<div class="logo"><span class="logo-dot"></span><span class="logo-text">FocusWebCam</span></div>', unsafe_allow_html=True)
     with col_status:
-        status = "SESI AKTIF" if st.session_state.session_active else "SIAP — Model LR"
+        if st.session_state.session_active:
+            status = "SESI AKTIF"
+        else:
+            status = "SIAP — Model LR"
         st.markdown(f'<div class="header-status">{status}</div>', unsafe_allow_html=True)
 
-    cam_col, info_col = st.columns([3, 2])
+    cam_col, info_col = st.columns([3,2])
 
     with cam_col:
         if not st.session_state.session_active:
@@ -777,8 +749,7 @@ def show_app_page():
                     avg = round(sum(hist)/len(hist))
                     pct = round(sum(1 for s in hist if s >= ALERT_THRESHOLD)/len(hist)*100)
                     ts = datetime.now().strftime("%H:%M:%S")
-                    st.session_state.log_entries.insert(
-                        0, f"📊 [{ts}] Selesai — avg {avg}, fokus {pct}%, {st.session_state.alert_count} alert")
+                    st.session_state.log_entries.insert(0, f"📊 [{ts}] Selesai — avg {avg}, fokus {pct}%, {st.session_state.alert_count} alert")
                 st.session_state.session_active = False
                 st.session_state.show_session_complete = True
                 st.rerun()
@@ -817,7 +788,6 @@ def show_app_page():
             state_txt = "FOKUS" if score >= 65 else ("PERHATIAN" if score >= 40 else "TIDAK FOKUS")
         else:
             color_hex, state_txt, score = "#555555", "—", 0
-
         st.markdown(f"""
         <div class="score-card">
             <div class="score-label">FOCUS SCORE</div>
@@ -829,8 +799,8 @@ def show_app_page():
         st.progress(score/100 if score else 0)
 
         f1, f2, f3 = st.columns(3)
-        ear_disp   = f"{ear:.3f}"   if ear   is not None else "—"
-        head_disp  = f"{head:.3f}"  if head  is not None else "—"
+        ear_disp = f"{ear:.3f}" if ear is not None else "—"
+        head_disp = f"{head:.3f}" if head is not None else "—"
         mouth_disp = f"{mouth:.3f}" if mouth is not None else "—"
         with f1:
             st.markdown(f'<div class="feature-card"><div class="feature-name">EAR (MATA)</div><div class="feature-value">{ear_disp}</div><div class="feature-bar-track"><div class="feature-bar-fill" style="width:{min(ear*400 if ear else 0,100)}%"></div></div></div>', unsafe_allow_html=True)
@@ -844,7 +814,7 @@ def show_app_page():
 
         hist = st.session_state.score_history
         avg_s = round(sum(hist)/len(hist)) if hist else 0
-        fpct  = round(sum(1 for s in hist if s >= ALERT_THRESHOLD)/len(hist)*100) if hist else 0
+        fpct = round(sum(1 for s in hist if s >= ALERT_THRESHOLD)/len(hist)*100) if hist else 0
         elapsed = int(time.time() - st.session_state.session_start) if st.session_state.session_start else 0
         mm, ss = elapsed//60, elapsed%60
         st.markdown(f"""
@@ -872,7 +842,7 @@ def show_app_page():
     st.markdown('<div class="privacy-note">🔒 Data diproses lokal — tidak dikirim ke server</div>', unsafe_allow_html=True)
 
 # ============================================================
-# 12. MAIN
+# 13. MAIN
 # ============================================================
 def main():
     load_css()
