@@ -1,10 +1,9 @@
 """
 FocusWebCam — Streamlit Edition with Premium UI (Proyek 3)
 ===========================================================
-- Compatible with Streamlit 1.58.0 (sama seperti Proyek 2)
-- Menggunakan @st.dialog decorator (bukan with st.dialog)
+- Compatible with Streamlit 1.58.0
+- UI semirip mungkin dengan Proyek 1 (termasuk background gambar)
 - Logika identik dengan Proyek 2
-- UI semirip mungkin dengan Proyek 1
 """
 
 import streamlit as st
@@ -16,6 +15,8 @@ from collections import deque
 from datetime import datetime
 import av
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+import os
+from PIL import Image
 
 # ============================================================
 # PAGE CONFIG
@@ -26,6 +27,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# ============================================================
+# CEK FOLDER ASSETS
+# ============================================================
+ASSETS_PATH = "assets"
+if not os.path.exists(ASSETS_PATH):
+    os.makedirs(ASSETS_PATH)
 
 # ============================================================
 # IMPOR MEDIAPIPE
@@ -293,46 +301,74 @@ def drain_queue():
             st.warning(f"⚠️ Skor fokus rendah ({score}) selama 5 detik!")
 
 # ============================================================
-# CSS PREMIUM (meniru Proyek 1)
+# CSS PREMIUM (meniru Proyek 1 dengan background gambar)
 # ============================================================
 def load_css():
-    st.markdown("""
+    # Cek apakah file bg.png ada di assets
+    bg_image_path = "assets/bg.png"
+    bg_image_url = "https://raw.githubusercontent.com/your-repo/focuswebcam/main/assets/bg.png"  # fallback
+    if os.path.exists(bg_image_path):
+        import base64
+        with open(bg_image_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+        bg_image_url = f"data:image/png;base64,{encoded}"
+    else:
+        bg_image_url = "https://www.transparenttextures.com/patterns/45-degree-fabric-light.png"
+    
+    st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&family=Kameron:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
-    .stApp {
-        background: #cfdce8;
+    /* Global background dengan gambar */
+    .stApp {{
+        background: url("{bg_image_url}") no-repeat center center fixed;
+        background-size: cover;
         font-family: 'Syne', sans-serif;
-    }
-    [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {
+    }}
+    /* Overlay gradien agar teks terbaca */
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(145deg, rgba(221,232,240,0.85) 0%, rgba(200,216,232,0.9) 100%);
+        z-index: -1;
+        pointer-events: none;
+    }}
+    [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
         display: none !important;
-    }
-    [data-testid="stSidebar"] {
+    }}
+    [data-testid="stSidebar"] {{
         display: none !important;
-    }
-    /* Landing page */
-    .landing-container {
+    }}
+    
+    /* Landing page container dengan gambar background */
+    .landing-container {{
         position: fixed;
         inset: 0;
         display: flex;
-        align-items: center;
-        justify-content: flex-start;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
         padding: 80px;
         z-index: 10;
-        background: linear-gradient(145deg, #dde8f0 0%, #c8d8e8 40%, #b8cfe0 100%);
-    }
-    .landing-content {
+        background: linear-gradient(145deg, rgba(221,232,240,0.7) 0%, rgba(200,216,232,0.8) 100%);
+        backdrop-filter: blur(8px);
+    }}
+    .landing-content {{
         max-width: 700px;
         margin-left: 8%;
-    }
-    .landing-welcome {
+    }}
+    .landing-welcome {{
         font-family: 'Lusitana', serif;
         font-size: 5rem;
         font-weight: 400;
         color: #1e2d40;
         line-height: 1;
-    }
-    .landing-title {
+    }}
+    .landing-title {{
         font-family: 'Kameron', serif;
         font-size: 5rem;
         font-weight: 700;
@@ -340,113 +376,110 @@ def load_css():
         display: flex;
         align-items: center;
         gap: 24px;
-    }
-    .dot-pulse {
+    }}
+    .dot-pulse {{
         display: inline-block;
         width: 42px;
         height: 42px;
         border-radius: 50%;
         background: #3a8c52;
         animation: dotBlink 2.2s ease-in-out infinite;
-    }
-    @keyframes dotBlink {
-        0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(58,140,82,0.5); }
-        50% { opacity: 0.35; box-shadow: 0 0 0 8px rgba(58,140,82,0); }
-    }
-    .landing-subtitle {
+    }}
+    @keyframes dotBlink {{
+        0%,100% {{ opacity: 1; box-shadow: 0 0 0 0 rgba(58,140,82,0.5); }}
+        50% {{ opacity: 0.35; box-shadow: 0 0 0 8px rgba(58,140,82,0); }}
+    }}
+    .landing-subtitle {{
         font-family: 'Lusitana', serif;
         font-size: 1.6rem;
         color: #4a6075;
         margin-top: 16px;
-    }
-    .landing-cta {
+    }}
+    /* Tombol landing di tengah bawah */
+    .landing-button-wrapper {{
         position: fixed;
-        right: 80px;
         bottom: 60px;
+        left: 0;
+        right: 0;
         display: flex;
-        align-items: center;
-        gap: 20px;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-    }
-    .cta-text {
-        font-family: 'Lusitana', serif;
-        font-size: 2rem;
-        font-weight: 700;
-        color: #1a2433;
-    }
-    .cta-arrow {
-        width: 80px;
-        height: 80px;
-        background: #1a2433;
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
         justify-content: center;
-        font-size: 2.2rem;
-        transition: transform 0.25s;
-    }
-    .landing-cta:hover .cta-arrow {
-        transform: translateX(6px);
-    }
-    .app-wrapper {
+        z-index: 20;
+    }}
+    .landing-button {{
+        background: #1a2433;
+        border: none;
+        padding: 14px 48px;
+        border-radius: 60px;
+        font-family: 'Lusitana', serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s, background 0.2s;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }}
+    .landing-button:hover {{
+        background: #2a3a50;
+        transform: scale(1.02);
+    }}
+    
+    /* App page */
+    .app-wrapper {{
         padding: 16px 24px;
         height: 100vh;
         display: flex;
         flex-direction: column;
-    }
-    .header {
+    }}
+    .header {{
         display: flex;
         justify-content: space-between;
         align-items: center;
         border-bottom: 1px solid rgba(30,45,64,0.15);
         padding-bottom: 10px;
         margin-bottom: 12px;
-    }
-    .logo {
+    }}
+    .logo {{
         display: flex;
         align-items: center;
         gap: 10px;
-    }
-    .logo-dot {
+    }}
+    .logo-dot {{
         width: 20px;
         height: 20px;
         background: #3a8c52;
         border-radius: 50%;
         box-shadow: 0 0 10px rgba(58,140,82,0.6);
         animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0%,100% { opacity: 1; box-shadow: 0 0 10px #3a8c52; }
-        50% { opacity: 0.45; box-shadow: 0 0 4px #3a8c52; }
-    }
-    .logo-text {
+    }}
+    @keyframes pulse {{
+        0%,100% {{ opacity: 1; box-shadow: 0 0 10px #3a8c52; }}
+        50% {{ opacity: 0.45; box-shadow: 0 0 4px #3a8c52; }}
+    }}
+    .logo-text {{
         font-family: 'Kameron', serif;
         font-size: 3rem;
         font-weight: 700;
         color: #1a2433;
-    }
-    .header-status {
+    }}
+    .header-status {{
         font-family: 'Space Mono', monospace;
         font-size: 0.6rem;
         color: #6a7e92;
         letter-spacing: 0.1em;
-    }
-    .main-layout {
+    }}
+    .main-layout {{
         display: grid;
         grid-template-columns: 1fr 340px;
         gap: 16px;
         flex: 1;
         overflow: hidden;
-    }
-    .camera-section {
+    }}
+    .camera-section {{
         display: flex;
         flex-direction: column;
         gap: 10px;
-    }
-    .camera-frame {
+    }}
+    .camera-frame {{
         position: relative;
         flex: 1;
         background: rgba(255,255,255,0.25);
@@ -454,8 +487,8 @@ def load_css():
         border-radius: 6px;
         overflow: hidden;
         backdrop-filter: blur(4px);
-    }
-    .corner {
+    }}
+    .corner {{
         position: absolute;
         width: 16px;
         height: 16px;
@@ -463,12 +496,12 @@ def load_css():
         border-style: solid;
         z-index: 10;
         transition: border-color 0.3s;
-    }
-    .tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
-    .tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
-    .bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
-    .br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
-    .face-status {
+    }}
+    .tl {{ top: 10px; left: 10px; border-width: 2px 0 0 2px; }}
+    .tr {{ top: 10px; right: 10px; border-width: 2px 2px 0 0; }}
+    .bl {{ bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }}
+    .br {{ bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }}
+    .face-status {{
         position: absolute;
         bottom: 12px;
         left: 12px;
@@ -478,128 +511,128 @@ def load_css():
         padding: 4px 10px;
         border-radius: 2px;
         z-index: 10;
-    }
-    .info-section {
+    }}
+    .info-section {{
         display: flex;
         flex-direction: column;
         gap: 10px;
         overflow-y: auto;
         scrollbar-width: none;
-    }
-    .score-card, .features-grid, .stats-card, .log-card {
+    }}
+    .score-card, .features-grid, .stats-card, .log-card {{
         background: rgba(255,255,255,0.55);
         border: 1px solid rgba(30,45,64,0.12);
         border-radius: 6px;
         backdrop-filter: blur(6px);
         padding: 14px 16px;
-    }
-    .score-label {
+    }}
+    .score-label {{
         font-family: 'Space Mono', monospace;
         font-size: 0.7rem;
         color: #6a7e92;
         letter-spacing: 0.12em;
-    }
-    .score-number {
+    }}
+    .score-number {{
         font-family: 'Kameron', serif;
         font-size: 2.8rem;
         font-weight: 700;
         color: #1e2d40;
         line-height: 1;
-    }
-    .score-unit {
+    }}
+    .score-unit {{
         font-family: 'Space Mono', monospace;
         font-size: 0.9rem;
         color: #8a9eb0;
-    }
-    .score-bar-track {
+    }}
+    .score-bar-track {{
         height: 8px;
         background: #dce8f0;
         border-radius: 4px;
         overflow: hidden;
         margin: 8px 0;
-    }
-    .score-bar-fill {
+    }}
+    .score-bar-fill {{
         height: 100%;
         width: 0%;
         background: #3a8c52;
         transition: width 0.4s;
-    }
-    .features-grid {
+    }}
+    .features-grid {{
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 6px;
         padding: 10px 8px;
-    }
-    .feature-card {
+    }}
+    .feature-card {{
         background: rgba(255,255,255,0.5);
         border: 1px solid rgba(30,45,64,0.1);
         border-radius: 4px;
         padding: 8px 4px;
         text-align: center;
-    }
-    .feature-name {
+    }}
+    .feature-name {{
         font-family: 'Space Mono', monospace;
         font-size: 0.5rem;
         color: #6a7e92;
         text-transform: uppercase;
-    }
-    .feature-value {
+    }}
+    .feature-value {{
         font-family: 'Kameron', serif;
         font-size: 0.9rem;
         font-weight: 600;
         color: #1e2d40;
         margin: 4px 0;
-    }
-    .feature-bar-track {
+    }}
+    .feature-bar-track {{
         height: 3px;
         background: #dce8f0;
         border-radius: 2px;
         overflow: hidden;
-    }
-    .feature-bar-fill {
+    }}
+    .feature-bar-fill {{
         height: 100%;
         width: 0%;
         background: #3a8c52;
         transition: width 0.4s;
-    }
-    .stats-grid {
+    }}
+    .stats-grid {{
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 6px;
         text-align: center;
-    }
-    .stat-value {
+    }}
+    .stat-value {{
         font-family: 'Kameron', serif;
         font-size: 1rem;
         font-weight: 600;
         color: #c0392b;
-    }
-    .stat-label {
+    }}
+    .stat-label {{
         font-family: 'Space Mono', monospace;
         font-size: 0.6rem;
         color: #8a9eb0;
-    }
-    .log-list {
+    }}
+    .log-list {{
         max-height: 180px;
         overflow-y: auto;
         font-family: 'Space Mono', monospace;
         font-size: 0.7rem;
         color: #6a7e92;
-    }
-    .log-item {
+    }}
+    .log-item {{
         padding: 3px 0;
         border-bottom: 1px solid rgba(30,45,64,0.07);
-    }
-    .log-alert { color: #c0392b !important; }
-    .log-focus { color: #3a8c52 !important; }
-    .privacy-note {
+    }}
+    .log-alert {{ color: #c0392b !important; }}
+    .log-focus {{ color: #3a8c52 !important; }}
+    .privacy-note {{
         font-family: 'Space Mono', monospace;
         font-size: 0.5rem;
         color: #8a9eb0;
         text-align: center;
         margin-top: 8px;
-    }
-    .stButton > button {
+    }}
+    .stButton > button {{
         background: transparent !important;
         border: 1.5px solid #3a8c52 !important;
         color: #3a8c52 !important;
@@ -607,16 +640,16 @@ def load_css():
         width: 100%;
         border-radius: 6px !important;
         transition: all 0.25s;
-    }
-    .stButton > button:hover {
+    }}
+    .stButton > button:hover {{
         background: #3a8c52 !important;
         color: white !important;
-    }
+    }}
     </style>
     """, unsafe_allow_html=True)
 
 # ============================================================
-# DIALOG POPUP (MENGGUNAKAN DECORATOR @st.dialog SEPERTI PROYEK 2)
+# DIALOG POPUP (menggunakan @st.dialog)
 # ============================================================
 if not st.session_state.consent_asked:
     @st.dialog("📋 Privacy Agreement")
@@ -703,6 +736,7 @@ def face_warning_dialog():
 # LANDING PAGE
 # ============================================================
 def show_landing_page():
+    # Tampilkan HTML landing
     st.markdown("""
     <div class="landing-container">
         <div class="landing-content">
@@ -714,12 +748,20 @@ def show_landing_page():
             <p class="landing-subtitle">Your Personal AI Companion for Unstoppable Focus.</p>
         </div>
     </div>
+    <div class="landing-button-wrapper">
+        <button class="landing-button" id="landingStartBtn">Let's get started →</button>
+    </div>
+    <script>
+    document.getElementById('landingStartBtn').onclick = function() {
+        const streamlitButton = parent.document.querySelector('button[kind="primary"]');
+        if (streamlitButton) streamlitButton.click();
+    }
+    </script>
     """, unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([4,1,1])
-    with col3:
-        if st.button("Let's get started →", key="landing_btn"):
-            st.session_state.show_landing = False
-            st.rerun()
+    # Tombol Streamlit tersembunyi untuk menangkap klik
+    if st.button("hidden_start", key="hidden_start", label_visibility="collapsed"):
+        st.session_state.show_landing = False
+        st.rerun()
 
 # ============================================================
 # MAIN APP PAGE
@@ -775,8 +817,9 @@ def show_app_page():
         )
         st.session_state.webrtc_ctx = ctx
 
+        # CSS corner overlay hanya untuk tampilan, karena video sudah di-render oleh komponen
         st.markdown("""
-        <div class="camera-frame" style="position:relative; min-height:360px;">
+        <div class="camera-frame" style="position:relative; min-height:360px; margin-top:8px;">
             <div class="corner tl"></div><div class="corner tr"></div>
             <div class="corner bl"></div><div class="corner br"></div>
             <div class="face-status">Wajah terdeteksi</div>
