@@ -1,9 +1,9 @@
 """
-FocusWebCam — Streamlit Edition with Premium UI (Proyek 3)
-===========================================================
-- Logika 100% identik dengan Proyek 2 (Streamlit)
-- UI/UX semirip mungkin dengan Proyek 1 (HTML/CSS/JS localhost)
-- Mempertahankan semua parameter, threshold, model, dan dependency.
+FocusWebCam — Streamlit Edition with Premium UI (Proyek 3) - FIXED
+===================================================================
+- Compatible with Streamlit 1.58.0
+- Fixed st.dialog parameters
+- All logic identical to Proyek 2
 """
 
 import streamlit as st
@@ -17,7 +17,7 @@ import av
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 
 # ============================================================
-# 1. PAGE CONFIG (harus di awal)
+# 1. PAGE CONFIG
 # ============================================================
 st.set_page_config(
     page_title="FocusWebCam | Ethical AI Focus Detection",
@@ -27,7 +27,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# 2. IMPOR MEDIAPIPE (sama seperti Proyek 2)
+# 2. IMPOR MEDIAPIPE
 # ============================================================
 import mediapipe as mp
 mp_face_mesh = mp.solutions.face_mesh
@@ -43,7 +43,6 @@ NOSE_TIP, FACE_LEFT, FACE_RIGHT = 1, 234, 454
 
 # ============================================================
 # 4. MODEL PARAMETERS (HARDCODE dari training_report.txt)
-#    SAMA PERSIS DENGAN PROYEK 2
 # ============================================================
 MODEL_COEF = {"ear": 1.0494, "head_pose": -2.6625, "mouth_ratio": 2.0005}
 MODEL_INTERCEPT = -0.5234
@@ -122,7 +121,7 @@ def explain_score(ear, head, mouth, score):
         return f"⚠️ Tidak fokus ({score}/100) — {isu}"
 
 # ============================================================
-# 6. QUEUE DAN SESSION STATE (IDENTIK PROYEK 2)
+# 6. QUEUE DAN SESSION STATE
 # ============================================================
 if "result_queue" not in st.session_state:
     st.session_state.result_queue = queue.Queue(maxsize=5)
@@ -143,6 +142,7 @@ def init_state():
         "show_exit_popup":  False,
         "show_face_warning": False,
         "face_warning_triggered": False,
+        "show_session_complete": False,
         "disp_score":       None,
         "disp_ear":         None,
         "disp_head":        None,
@@ -157,7 +157,7 @@ def init_state():
 init_state()
 
 # ============================================================
-# 7. VIDEO PROCESSOR (IDENTIK PROYEK 2, ditambah overlay lebih cantik)
+# 7. VIDEO PROCESSOR (IDENTIK PROYEK 2)
 # ============================================================
 class FocusVideoProcessor:
     def __init__(self):
@@ -210,7 +210,7 @@ class FocusVideoProcessor:
                 try:    result_queue.put_nowait(data)
                 except: pass
 
-            # ── Draw overlay (lebih stylish) ──
+            # Draw overlay
             for idx in LEFT_EYE + RIGHT_EYE:
                 pt = lm[idx]
                 cv2.circle(img, (int(pt.x*w), int(pt.y*h)), 2, color, -1)
@@ -222,7 +222,6 @@ class FocusVideoProcessor:
                 (int(fr.x*w), int(fb.y*h)),
                 color, 1)
 
-            # HUD dengan background semi-transparan
             overlay = img.copy()
             cv2.rectangle(overlay, (10, 10), (210, 105), (0,0,0), -1)
             cv2.addWeighted(overlay, 0.55, img, 0.45, 0, img)
@@ -254,7 +253,7 @@ class FocusVideoProcessor:
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # ============================================================
-# 8. DRAIN QUEUE (UPDATE SESSION STATE)
+# 8. DRAIN QUEUE
 # ============================================================
 def drain_queue():
     latest = None
@@ -293,14 +292,13 @@ def drain_queue():
             st.toast(f"⚠️ Skor fokus rendah ({score}) selama 5 detik!", icon="⚠️")
 
 # ============================================================
-# 9. CSS PREMIUM (MENIRU PROYEK 1)
+# 9. CSS PREMIUM (meniru Proyek 1)
 # ============================================================
 def load_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&family=Kameron:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
-    /* Global & background */
     .stApp {
         background: #cfdce8;
         font-family: 'Syne', sans-serif;
@@ -310,15 +308,6 @@ def load_css():
     }
     [data-testid="stSidebar"] {
         display: none !important;
-    }
-    .main-bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-        background: linear-gradient(145deg, #dde8f0 0%, #c8d8e8 100%);
     }
     /* Landing page */
     .landing-container {
@@ -401,8 +390,6 @@ def load_css():
     .landing-cta:hover .cta-arrow {
         transform: translateX(6px);
     }
-
-    /* App page wrapper */
     .app-wrapper {
         padding: 16px 24px;
         height: 100vh;
@@ -611,7 +598,6 @@ def load_css():
         text-align: center;
         margin-top: 8px;
     }
-    /* Tombol */
     .stButton > button {
         background: transparent !important;
         border: 1.5px solid #3a8c52 !important;
@@ -629,11 +615,11 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # ============================================================
-# 10. DIALOG POPUP (PRIVACY, SESSION COMPLETE, EXIT, FACE WARNING)
+# 10. DIALOG POPUP (FIXED: removed clear_on_submit)
 # ============================================================
 def privacy_dialog():
     if not st.session_state.consent_asked:
-        with st.dialog("📋 Privacy Agreement", clear_on_submit=False):
+        with st.dialog("📋 Privacy Agreement"):
             st.markdown("""
             **To help you track your focus levels accurately, FocusWebCam needs to analyze your facial data through your camera. But don't worry, your privacy is our number one priority!**
 
@@ -662,7 +648,7 @@ def session_complete_dialog():
         alert = st.session_state.alert_count
         duration = int(time.time() - st.session_state.session_start) if st.session_state.session_start else 0
         mm, ss = duration//60, duration%60
-        with st.dialog("🎉 Session Complete!", clear_on_submit=False):
+        with st.dialog("🎉 Session Complete!"):
             st.markdown(f"""
             **Amazing job!** You made it to the end of your session.
             - **Duration:** {mm} menit {ss} detik
@@ -670,7 +656,6 @@ def session_complete_dialog():
             - **Alerts:** {alert} kali
             """)
             if st.button("Start New Session", use_container_width=True):
-                # reset semua
                 st.session_state.session_active = False
                 st.session_state.show_session_complete = False
                 st.session_state.score_history = []
@@ -707,7 +692,7 @@ def face_warning_dialog():
                 st.rerun()
 
 # ============================================================
-# 11. LANDING PAGE (HTML custom)
+# 11. LANDING PAGE
 # ============================================================
 def show_landing_page():
     st.markdown("""
@@ -722,7 +707,6 @@ def show_landing_page():
         </div>
     </div>
     """, unsafe_allow_html=True)
-    # Tombol Let's get started di pojok kanan bawah
     col1, col2, col3 = st.columns([4,1,1])
     with col3:
         if st.button("Let's get started →", key="landing_btn"):
@@ -744,11 +728,9 @@ def show_app_page():
             status = "SIAP — Model LR"
         st.markdown(f'<div class="header-status">{status}</div>', unsafe_allow_html=True)
 
-    # Layout: kamera + info
     cam_col, info_col = st.columns([3,2])
 
     with cam_col:
-        # Tombol start/stop
         if not st.session_state.session_active:
             if st.button("▶ MULAI SESI", key="start_btn"):
                 st.session_state.session_active = True
@@ -772,7 +754,6 @@ def show_app_page():
                 st.session_state.show_session_complete = True
                 st.rerun()
 
-        # WebRTC streamer
         rtc_config = RTCConfiguration(
             {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
         )
@@ -786,12 +767,11 @@ def show_app_page():
         )
         st.session_state.webrtc_ctx = ctx
 
-        # Overlay corner (CSS)
         st.markdown("""
         <div class="camera-frame" style="position:relative; min-height:360px;">
             <div class="corner tl"></div><div class="corner tr"></div>
             <div class="corner bl"></div><div class="corner br"></div>
-            <div class="face-status" id="faceStatus">Wajah terdeteksi</div>
+            <div class="face-status">Wajah terdeteksi</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -803,7 +783,6 @@ def show_app_page():
         mouth = st.session_state.disp_mouth
         expl  = st.session_state.disp_expl
 
-        # Score card
         if score is not None:
             color_hex = "#00ff88" if score >= 65 else ("#ffcc00" if score >= 40 else "#ff4444")
             state_txt = "FOKUS" if score >= 65 else ("PERHATIAN" if score >= 40 else "TIDAK FOKUS")
@@ -819,7 +798,6 @@ def show_app_page():
         """, unsafe_allow_html=True)
         st.progress(score/100 if score else 0)
 
-        # Feature cards
         f1, f2, f3 = st.columns(3)
         ear_disp = f"{ear:.3f}" if ear is not None else "—"
         head_disp = f"{head:.3f}" if head is not None else "—"
@@ -831,11 +809,9 @@ def show_app_page():
         with f3:
             st.markdown(f'<div class="feature-card"><div class="feature-name">MOUTH RATIO</div><div class="feature-value">{mouth_disp}</div><div class="feature-bar-track"><div class="feature-bar-fill" style="width:{min((1-mouth/0.12)*100 if mouth else 0,100)}%"></div></div></div>', unsafe_allow_html=True)
 
-        # Explanation
         if expl:
             st.markdown(f'<div class="score-card" style="margin-top:8px"><div class="score-label">📊 EXPLANATION</div><div style="font-size:0.75rem">{expl}</div></div>', unsafe_allow_html=True)
 
-        # Session stats
         hist = st.session_state.score_history
         avg_s = round(sum(hist)/len(hist)) if hist else 0
         fpct = round(sum(1 for s in hist if s >= ALERT_THRESHOLD)/len(hist)*100) if hist else 0
@@ -853,14 +829,12 @@ def show_app_page():
         </div>
         """, unsafe_allow_html=True)
 
-        # Log activity
         logs_html = ""
         for entry in st.session_state.log_entries[:20]:
             cls = "log-alert" if "⚠️" in entry else ("log-focus" if "🎯" in entry or "✅" in entry else "")
             logs_html += f'<div class="log-item {cls}">{entry}</div>'
         st.markdown(f'<div class="log-card"><div class="score-label">LOG AKTIVITAS</div><div class="log-list">{logs_html}</div></div>', unsafe_allow_html=True)
 
-        # Back button
         if st.button("← Back", key="back_btn"):
             st.session_state.show_exit_popup = True
             st.rerun()
@@ -881,7 +855,6 @@ def main():
         show_landing_page()
     else:
         show_app_page()
-        # Auto-refresh selama kamera aktif
         if st.session_state.get("webrtc_ctx") and st.session_state.webrtc_ctx.state.playing:
             time.sleep(0.5)
             st.rerun()
